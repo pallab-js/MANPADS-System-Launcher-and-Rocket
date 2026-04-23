@@ -1,5 +1,8 @@
+#![allow(dead_code)]
+#![allow(special_module_name)]
+
 mod backend;
-mod lib;
+pub mod lib;
 
 use std::path::PathBuf;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
