@@ -6,6 +6,5 @@
   "permissions": [
     "core:default",
     "shell:allow-open"
-  ],
-  "platforms": ["macOS"]
+  ]
 }

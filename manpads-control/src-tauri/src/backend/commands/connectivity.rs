@@ -6,8 +6,28 @@ use tracing::{info, error, debug};
 
 static TELEMETRY_RUNNING: AtomicBool = AtomicBool::new(false);
 
+const VALID_COMMANDS: &[&str] = &[
+    "launch",
+    "calibrate",
+    "emergency_stop",
+    "estop",
+    "arm",
+    "disarm",
+    "update_pid",
+];
+
 #[tauri::command]
 pub async fn connect(ip: String, port: u16) -> Result<(), AppError> {
+    if ip.len() > 45 {
+        return Err(AppError::ParseError("IP address too long".to_string()));
+    }
+    
+    let ip_chars: Vec<char> = ip.chars().collect();
+    let valid_chars = ip_chars.iter().all(|c| c.is_ascii_digit() || *c == '.' || *c == ':');
+    if !valid_chars {
+        return Err(AppError::ParseError("IP contains invalid characters".to_string()));
+    }
+    
     info!("Connecting to {}:{}", ip, port);
     
     socket::connect(&ip, port).await.map_err(|e| {
@@ -35,6 +55,15 @@ pub async fn get_connection_status() -> Result<bool, AppError> {
 
 #[tauri::command]
 pub async fn send_command(cmd_type: String, params: Option<serde_json::Value>) -> Result<(), AppError> {
+    if !VALID_COMMANDS.contains(&cmd_type.as_str()) {
+        error!("Invalid command rejected: {}", cmd_type);
+        return Err(AppError::ParseError(format!("Invalid command: {}", cmd_type)));
+    }
+    
+    if cmd_type.len() > 32 {
+        return Err(AppError::ParseError("Command name too long".to_string()));
+    }
+    
     info!("Sending command: {}", cmd_type);
     
     let command = match cmd_type.as_str() {
@@ -52,6 +81,15 @@ pub async fn send_command(cmd_type: String, params: Option<serde_json::Value>) -
                 .and_then(|p| p.get("kd"))
                 .and_then(|v| v.as_f64())
                 .unwrap_or(0.0) as f32;
+            
+            if kp < 0.0 || kp > 100.0 || kd < 0.0 || kd > 100.0 {
+                return Err(AppError::ParseError("PID values out of range".to_string()));
+            }
+            
+            if !kp.is_finite() || !kd.is_finite() {
+                return Err(AppError::ParseError("Invalid PID values".to_string()));
+            }
+            
             ControlCommand::UpdatePid { kp, kd }
         }
         _ => return Err(AppError::ParseError(format!("Unknown command: {}", cmd_type))),
@@ -92,6 +130,11 @@ pub async fn start_telemetry_stream(app_handle: AppHandle) -> Result<(), AppErro
             
             match socket::receive(&mut buffer).await {
                 Ok((len, _addr)) => {
+                    if len > 8192 {
+                        error!("Received packet too large: {} bytes", len);
+                        continue;
+                    }
+                    
                     let data = &buffer[..len];
                     let messages = socket::parse_incoming_data(data);
                     
