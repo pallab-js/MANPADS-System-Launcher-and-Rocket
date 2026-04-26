@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,6 +9,12 @@ use crate::lib::{TelemetryMessage, ControlCommand};
 lazy_static::lazy_static! {
     static ref SOCKET: tokio::sync::RwLock<Option<Arc<UdpSocket>>> = tokio::sync::RwLock::new(None);
     static ref TARGET: tokio::sync::RwLock<Option<SocketAddr>> = tokio::sync::RwLock::new(None);
+}
+
+const MAX_COMMAND_QUEUE: usize = 50;
+
+lazy_static::lazy_static! {
+    static ref COMMAND_QUEUE: tokio::sync::Mutex<VecDeque<String>> = tokio::sync::Mutex::new(VecDeque::new());
 }
 
 const MAX_LINE_LENGTH: usize = 512;
@@ -55,6 +62,11 @@ pub async fn connect(ip: &str, port: u16) -> Result<(), String> {
 
     info!("Connected to {}:{}", ip, port);
     
+    // Flush queued commands on connect
+    if let Err(e) = flush_command_queue().await {
+        warn!("Failed to flush command queue: {}", e);
+    }
+    
     *SOCKET.write().await = Some(socket);
     *TARGET.write().await = Some(target_addr);
     
@@ -68,8 +80,24 @@ pub async fn disconnect() {
 }
 
 pub async fn send(cmd: &ControlCommand) -> Result<(), String> {
-    let socket = SOCKET.read().await;
-    let socket = socket.as_ref().ok_or("Not connected")?;
+    let socket_guard = SOCKET.read().await;
+    let is_connected = socket_guard.is_some();
+    
+    if !is_connected {
+        let data = serialize_command(cmd);
+        if !data.is_empty() {
+            let mut queue = COMMAND_QUEUE.lock().await;
+            if queue.len() >= MAX_COMMAND_QUEUE {
+                queue.pop_front();
+            }
+            queue.push_back(data);
+            debug!("Command queued (offline): {:?}", cmd);
+        }
+        return Ok(());
+    }
+    
+    let socket = socket_guard.as_ref().ok_or("Not connected")?;
+    drop(socket_guard);
     
     let target = TARGET.read().await;
     let target = target.ok_or("No target address")?;
@@ -81,7 +109,7 @@ pub async fn send(cmd: &ControlCommand) -> Result<(), String> {
     }
     
     socket
-        .send_to(data.as_bytes(), target)
+        .send_to(data.as_bytes(), *target)
         .await
         .map_err(|e| format!("Send failed: {}", e))?;
 
@@ -101,6 +129,24 @@ pub async fn receive(buffer: &mut [u8]) -> Result<(usize, SocketAddr), String> {
 
 pub async fn is_connected() -> bool {
     SOCKET.read().await.is_some() && TARGET.read().await.is_some()
+}
+
+pub async fn flush_command_queue() -> Result<(), String> {
+    let mut queue = COMMAND_QUEUE.lock().await;
+    let socket_guard = SOCKET.read().await;
+    let socket = socket_guard.as_ref().ok_or("Not connected")?;
+    let target = TARGET.read().await;
+    let target = target.ok_or("No target address")?;
+    
+    while let Some(data) = queue.pop_front() {
+        socket
+            .send_to(data.as_bytes(), *target)
+            .await
+            .map_err(|e| format!("Queue flush failed: {}", e))?;
+        debug!("Flushed queued command");
+    }
+    
+    Ok(())
 }
 
 pub fn parse_incoming_data(data: &[u8]) -> Vec<TelemetryMessage> {
