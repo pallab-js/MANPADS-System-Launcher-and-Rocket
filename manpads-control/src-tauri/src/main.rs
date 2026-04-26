@@ -5,21 +5,8 @@ mod backend;
 pub mod lib;
 
 use std::path::PathBuf;
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use backend::commands;
 use backend::commands::telemetry::StorageState;
-
-fn setup_logging() {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
-    
-    tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(filter)
-        .init();
-    
-    tracing::info!("MANPADS Control Panel starting...");
-}
 
 fn get_data_dir() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
@@ -33,24 +20,14 @@ fn get_data_dir() -> Option<PathBuf> {
 }
 
 fn main() {
-    setup_logging();
-
     let storage_state = get_data_dir()
         .and_then(|path| StorageState::new(path).ok());
 
     let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new()
-            .target(tauri_plugin_log::Target::new(
-                tauri_plugin_log::TargetKind::Stdout,
-            ))
-            .target(tauri_plugin_log::Target::new(
-                tauri_plugin_log::TargetKind::LogDir { file_name: Some("manpads.log".to_string()) },
-            ))
-            .build())
         .plugin(tauri_plugin_shell::init());
     
     if let Some(storage) = storage_state {
-        tracing::info!("Storage initialized successfully");
+        eprintln!("Storage initialized successfully");
         builder = builder.manage(storage);
     }
     

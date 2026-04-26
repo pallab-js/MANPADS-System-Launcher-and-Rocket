@@ -2,6 +2,7 @@ export const APP_NAME = 'MANPADS Control';
 export const APP_VERSION = '1.0.0';
 
 export const DEFAULT_IP = '192.168.4.1';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const DEFAULT_PORT = 4444;
 
 export const CONNECTION_STATES = {

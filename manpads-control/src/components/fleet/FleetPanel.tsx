@@ -77,7 +77,7 @@ export function FleetPanel() {
         {rocketList.length === 0 ? (
           <div className="text-center py-8 text-text-muted">
             <p>No rockets configured</p>
-            <p className="text-sm mt-1">Click "+ Add" to register a rocket</p>
+            <p className="text-sm mt-1">Click {"+ Add"} to register a rocket</p>
           </div>
         ) : (
           <div className="space-y-2">
