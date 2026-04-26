@@ -2,7 +2,58 @@
 
 A professional-grade macOS desktop application for managing the MANPADS guided rocket & launcher system.
 
-![Dark Mode Interface](#) | Supabase-inspired design
+## Quick Start
+
+```bash
+# 1. Clone and install
+git clone https://github.com/your-repo/MANPADS-System-Launcher-and-Rocket.git
+cd MANPADS-System-Launcher-and-Rocket/manpads-control
+npm install
+
+# 2. Start development
+npm run dev
+```
+
+**That's it!** The app launches with hot-reload. Build for production with `npm run build`.
+
+---
+
+## Architecture
+
+---
+
+## Architecture
+
+```mermaid
+graph TD
+    User[User] -->|interacts| Frontend[Next.js Frontend]
+    Frontend -->|invoke| Tauri[Tauri IPC]
+    Tauri -->|UDP| Rocket[ESP32 Rocket]
+    Tauri -->|UDP| Launcher[ESP32 Launcher]
+    Tauri -->|store| SQLite[(SQLite)]
+    
+    subgraph Backend
+    Tauri -->|commands| Cmd[Command Handlers]
+    Cmd -->|socket| UDP[UDP Socket]
+    UDP -->|parse| Parser[Telemetry Parser]
+    Parser -->|process| Proc[Telemetry Processor]
+    Proc -->|queue| Queue[Command Queue]
+    end
+    
+    subgraph "State Machine"
+    Safe -->|ARM| Armed
+    Armed -->|LAUNCH| Launching
+    Launching -->|ESTOP| Safe
+    end
+```
+
+### State Machine Flow
+
+```
+Safe → Calibrating → Armed → Launching → Firing → Recovering
+  ↑        ↓           ↓        ↓          ↓          ↓
+  └────────┴───────────┴────────┴──────────┴──────────┘ (EmergencyStop from any state)
+```
 
 ## Features
 
@@ -158,11 +209,38 @@ Follows the Supabase-inspired dark mode design:
 - Check that the IP address matches the launcher's AP (default: `192.168.4.1`)
 - Verify port `4444` is not blocked by firewall
 
+### Serial Permission Errors (Linux)
+
+```bash
+# Add user to dialout group
+sudo usermod -a -G dialout $USER
+# Log out and back in
+```
+
+### macOS Permission Errors
+
+If prompted, grant network access in **System Preferences → Security & Privacy → Firewall**.
+
 ### Build Errors
 
 - Ensure Rust 1.70+ is installed: `rustc --version`
 - Update dependencies: `cargo update` in `src-tauri/`
 - Clear build cache: `cargo clean` in `src-tauri/`
+
+### Missing Dependencies
+
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Install Node.js 18+
+nvm install 18
+nvm use 18
+
+# Install system packages for Tauri
+# macOS
+xcode-select --install
+```
 
 ## Contributing
 

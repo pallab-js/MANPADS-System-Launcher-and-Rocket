@@ -44,12 +44,64 @@ Thank you for your interest in contributing!
 - **Rust**: Follow standard conventions, use `rustfmt`
 - **Styling**: TailwindCSS classes, see `DESIGN.md` for tokens
 
+### Pre-commit Hooks
+
+```bash
+# Format before committing
+npm run lint  # Frontend
+cargo fmt    # Backend
+
+# Type checking
+npm run typecheck
+cargo check
+```
+
+## Commit Conventions
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+### Types
+
+| Type | Description |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation |
+| `style` | Formatting, no code change |
+| `refactor` | Code refactoring |
+| `test` | Tests |
+| `chore` | Maintenance |
+
+### Examples
+
+```bash
+git commit -m "feat(telemetry): add rolling buffer for display"
+git commit -m "fix(socket): resolve command queue overflow"
+git commit -m "docs(readme): add quick start section"
+```
+
 ## Pull Request Process
 
 1. Create a feature branch: `git checkout -b feature/amazing-feature`
 2. Make changes with clear commit messages
-3. Ensure tests pass: `cargo test`
+3. Ensure tests pass: `cargo test` / `npm run test`
 4. Submit a PR with description of changes
+
+### PR Title Format
+
+Same as commit conventions:
+```
+feat(telemetry): add rolling buffer
+fix(udp): handle disconnection gracefully
+```
 
 ## Reporting Issues
 
