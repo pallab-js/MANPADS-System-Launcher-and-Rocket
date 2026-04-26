@@ -21,6 +21,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 parking_lot = "0.12"
 lazy_static = "1.4"
 dirs = "5.0"
+rayon = "1.8"
 
 [profile.release]
 panic = "abort"
