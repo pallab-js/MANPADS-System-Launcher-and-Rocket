@@ -124,6 +124,12 @@ impl StorageManager {
         Ok(csv)
     }
 
+    pub fn export_json(&self, flight_id: i64) -> Result<String, AppError> {
+        let records = self.get_telemetry(flight_id)?;
+        serde_json::to_string_pretty(&records)
+            .map_err(|e| AppError::DbError(e.to_string()))
+    }
+
     pub fn append_telemetry(&self, record: &TelemetryRecord) -> Result<(), AppError> {
         let conn = self.conn.lock();
         

@@ -49,6 +49,14 @@ pub fn export_flight_csv(
 }
 
 #[tauri::command]
+pub fn export_flight_json(
+    storage: State<StorageState>,
+    flight_id: i64,
+) -> Result<String, AppError> {
+    storage.storage.export_json(flight_id)
+}
+
+#[tauri::command]
 pub fn get_flights(
     storage: State<StorageState>,
 ) -> Result<Vec<FlightLog>, AppError> {
